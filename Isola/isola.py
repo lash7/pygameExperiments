@@ -53,15 +53,18 @@ class GameBoard:
         self.markPlayer(player)
     
     
+    """
+    Function to remove the tile in the second move of player
+    """
     def removeTile(self, x, y):
         self.grid[x][y] = -1
     
     """
     Function returns if the player move is possible
     """
-    def checkIfMoveIsPossible(x,y):
-        return self.grid[x][y] == 0 and x < n and \
-               y < n and x >= 0 and y >=0      
+    def checkIfMoveIsPossible(self,x,y):
+        return self.grid[x][y] == 0 and x < self.n and \
+               y < self.n and x >= 0 and y >=0      
     
         
     """
@@ -85,10 +88,14 @@ class Player:
     def setPosition(self,x,y):
         self.x = x
         self.y = y
-
-
-
-boardTiles = {}
+    
+        """
+    Return if the player can move to the spefied tile locations
+    """
+    def isMoveValid(self, x,y):
+        return abs(self.x - x) <= 1 and \
+            abs(self.y - y) <= 1 and \
+            not (self.x == x and self.y == y)
 
 """
 Function to generate tiles
@@ -117,18 +124,21 @@ def showText(text , color , xycenter):
     gameDisplay.blit(msg,msgRect)
     
 def createGame():
-    global board, player1, player2    
-    board = GameBoard(7)
-    player1 = Player(1,0,3)
-    player2 = Player(2,6,3)    
+    global board, player1, player2, player  , boardTiles, \
+            hasGameExited, inPlay, player1Turn, firstMove
+    board = GameBoard(N)
+    player1 = Player(1,0,N//2)
+    player2 = Player(2,N-1,N//2)    
     board.markPlayer(player1)
     board.markPlayer(player2)
-    
+    player = player1
+    boardTiles = {}
+    hasGameExited = False
+    inPlay = True
+    player1Turn = True
+    firstMove = True
 
-hasGameExited = False
-inPlay = True
-player1Turn = True
-firstMove = True
+
 
 
 createGame()
@@ -140,55 +150,98 @@ def getXYFromRectClicked(board,pos):
                 return (i,j)
 
 
+""" 
+Function to perform the game logic:
+- If its the first turn of player
+  --  move to a valid tile 
+- If its the second turn
+  -- remove a valid tile
+"""
+def performGameLogic():
+    global board, player1Turn, firstMove, player
+    
+    if firstMove and player.isMoveValid(x,y):
+        board.movePlayer(player,x,y)
+        # Toggle the move after every possible move
+        firstMove = not firstMove
+    elif not firstMove:
+        board.removeTile(x,y)
+        # Toggle player if the move is the second one for current player
+        player1Turn = not player1Turn
+        firstMove = not firstMove
+        player = player1 if player1Turn else player2
+        
+
+"""
+Function to check if the game has ended
+"""
+def checkGameEnd(board, player):
+    x, y = player.x, player.y
+    n = board.n
+    #  Checking for the normal cases            
+    startX = 0 if x == 0   else x - 1
+    endX   = n if x == n-1 else x + 2
+    startY = 0 if y == 0   else y - 1
+    endY   = n if y == n-1 else y + 2
+    
+    return not np.any(board.grid[startX : endX, startY:endY ] == 0)
+
+
+def makeDisplayChanges():
+    gameDisplay.fill(white)
+    drawGrid(board)
+    if inPlay:
+        showText("Player " + str(1 if player1Turn else 2) + "'s turn" ,black, (2*MARGIN, MARGIN/2))
+        showText("Move to Tile" if firstMove else "Remove Tile", black, (2*SIZE[0]/3, MARGIN/2))
+    pygame.display.update()
+
+
 while not hasGameExited:
     
     while inPlay:
         """ Event handling """    
         for event in pygame.event.get():
+            #print(event)
             if event.type == pygame.QUIT:
                 inPlay = False
                 hasGameExited = True
-            if event.type == pygame.mouse.get_pressed():
+            if event.type == pygame.MOUSEBUTTONDOWN:
                 ## if mouse is pressed get position of cursor ##
-                pos = pygame.mouse.get_pos()
+                pos = event.pos
                 print(pos)
                 ## check if cursor is on button ##
-                x,y = getXYFromRectClicked(board, pos)
-                print((x,y))
-                board.removeTile(x,y)
+                coord = getXYFromRectClicked(board, pos)
+                if coord != None:
+                    x,y = coord           
+                    print((x,y))
+                    if board.checkIfMoveIsPossible(x,y):
+                        performGameLogic()
+                    
+                if checkGameEnd(board, player):
+                    inPlay = False
                 
                 
-                
-        """ Game mechanics """
-        
-        
-        
         """ Drawing to screen """
-        gameDisplay.fill(white)
-        drawGrid(board)
-        showText("Player " + str(1 if player1Turn else 2) + "'s turn" ,black, (2*MARGIN, MARGIN/2))
-        pygame.display.update()
+        makeDisplayChanges()
         #clock.tick(fps)
         
-#    while not inPlay and not GameExit:
-#        showText("You Lose !", \
-#                  white, (size[0]//2, size[1]//2))
-#        showText("Press Q to Quit or C to continue",\
-#                  black,(size[0]//3, size[1]//3))
-#        pygame.display.update()
-#        for event in pygame.event.get():
-#            if event.type == pygame.QUIT:
-#                inPlay = True
-#                GameExit = True
-#            elif event.type == pygame.KEYDOWN:
-#                if event.key == pygame.K_q:
-#                    inPlay = True
-#                    GameExit = True
-#                elif event.key == pygame.K_c:
-#                    inPlay = True
-#                    score = 0
-#                    screen.fill(orange)
-#                    pygame.display.update()
+    while not inPlay and not hasGameExited:
+        showText("Player " + str(player.id) + " Lost !!" ,\
+                  black, (SIZE[0]/2, MARGIN/3))
+        showText("Press Q to Quit or R to Restart",\
+                  black,(SIZE[0]/2, 2*MARGIN/3))
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                inPlay = True
+                hasGameExited = True
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    inPlay = True
+                    hasGameExited = True
+                elif event.key == pygame.K_r:
+                    createGame()
+                    makeDisplayChanges()
                     
 pygame.quit()
 
