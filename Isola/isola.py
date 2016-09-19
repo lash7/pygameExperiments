@@ -6,6 +6,7 @@ Created on Mon Sep 12 15:19:53 2016
 """
 import numpy as np
 import pygame 
+from GameClasses import GameBoard, Player
 
 # Params
 N = 7
@@ -14,7 +15,7 @@ MARGIN = SIZE[0]/10
 POS = [SIZE[0]/4 , SIZE[0]/4]
 TILE_SIZE = (np.min(SIZE)- 2*MARGIN)/N
 TILE_SPACE = 0
-red   = (255,0,0)
+red   = (170,0,0)
 green = (0, 170, 0)
 black = (0, 0 , 0)
 yellow = (245,245, 20)
@@ -30,93 +31,39 @@ COLOR = {
 
 pygame.init()
 gameDisplay = pygame.display.set_mode(SIZE)
-pygame.display.set_caption('ISOLA Game')
+pygame.display.set_caption('ISOLA Game - by Abhilash')
 clock = pygame.time.Clock()
 fps = 20
 
 
-class GameBoard:
-    """ 
-    Initialize the game board with values
-    """
-    def __init__(self, n):
-        self.n = n
-        self.grid = np.zeros((n,n), dtype = int)
-        
-    """ 
-    Function to move the current player to specified
-    point on the grid
-    """
-    def movePlayer(self, player, x,y):
-        self.grid[player.x][player.y] = 0
-        player.setPosition(x,y)
-        self.markPlayer(player)
-    
-    
-    """
-    Function to remove the tile in the second move of player
-    """
-    def removeTile(self, x, y):
-        self.grid[x][y] = -1
-    
-    """
-    Function returns if the player move is possible
-    """
-    def checkIfMoveIsPossible(self,x,y):
-        return self.grid[x][y] == 0 and x < self.n and \
-               y < self.n and x >= 0 and y >=0      
-    
-        
-    """
-    Set the position in the grid with the player id
-    """
-    
-    def markPlayer(self, player):
-        self.grid[player.x][player.y] = player.id
-       
-    
-
-class Player:
-    def __init__(self, id, x, y):
-        self.x = x
-        self.y = y
-        self.id = id
-    
-    """
-    Move the player's item to the specified x, y
-    """
-    def setPosition(self,x,y):
-        self.x = x
-        self.y = y
-    
-        """
-    Return if the player can move to the spefied tile locations
-    """
-    def isMoveValid(self, x,y):
-        return abs(self.x - x) <= 1 and \
-            abs(self.y - y) <= 1 and \
-            not (self.x == x and self.y == y)
-
 """
 Function to generate tiles
 """
-def drawGrid(board):
+def drawGrid(board, player,firstMove):
     global boardTiles
+    x,y = player.x, player.y
     for i in range(board.n):
         for j in range(board.n):
             xpos = MARGIN + j*(TILE_SIZE + TILE_SPACE)
             ypos = MARGIN + i*(TILE_SIZE + TILE_SPACE)
-            gridValue = board.grid[i][j]             
-            tileColor = COLOR[gridValue]
-            boardTiles[(i,j)] = pygame.draw.rect(gameDisplay,tileColor, [xpos,ypos, TILE_SIZE, TILE_SIZE])
-            pygame.draw.rect(gameDisplay,white, [xpos,ypos, TILE_SIZE, TILE_SIZE],2)
+            gridValue = board.grid[i][j]
+            if firstMove and gridValue == 0 and \
+                abs(i-x) <= 1 and abs(j-y) <= 1 :
+                    tileColor = yellow
+            else:
+                tileColor = COLOR[gridValue]
+            boardTiles[(i,j)] = pygame.draw.rect(gameDisplay,tileColor,\
+                                        [xpos,ypos, TILE_SIZE, TILE_SIZE])
+            pygame.draw.rect(gameDisplay,white, \
+                                [xpos,ypos, TILE_SIZE, TILE_SIZE],2)
             
             if gridValue > 0:
-                showText("P" + str(gridValue), white, (xpos + TILE_SIZE/2, ypos + TILE_SIZE/2 ))
+                showText("P" + str(gridValue), white, \
+                            (xpos + TILE_SIZE/2, ypos + TILE_SIZE/2 ))
             
             
             
-font = pygame.font.SysFont(None,32)
+font = pygame.font.SysFont(None,24)
 def showText(text , color , xycenter):
     msg = font.render(text, True, color)
     msgRect = msg.get_rect()
@@ -189,10 +136,12 @@ def checkGameEnd(board, player):
 
 def makeDisplayChanges():
     gameDisplay.fill(white)
-    drawGrid(board)
+    drawGrid(board, player, firstMove)
     if inPlay:
-        showText("Player " + str(1 if player1Turn else 2) + "'s turn" ,black, (2*MARGIN, MARGIN/2))
-        showText("Move to Tile" if firstMove else "Remove Tile", black, (2*SIZE[0]/3, MARGIN/2))
+        showText("Player " + str(1 if player1Turn else 2) + "'s turn" ,\
+                    red, (2*MARGIN, MARGIN/2))
+        showText("Move to a Yellow Tile" if firstMove else "Remove any Orange Tile",\
+                    red, (2*SIZE[0]/3, MARGIN/2))
     pygame.display.update()
 
 
